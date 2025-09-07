@@ -56,9 +56,9 @@ demo = gr.Interface(
     ),
     inputs=gr.CheckboxGroup(choices=list(analysis_modules.keys()), label="Select Analyses"),
     outputs=[gr.Textbox(label="Analysis Results"), gr.Plot(label="Temperature Data")],
-    title="Modular Data Analysis",
-    description="Analysis of Temperature Data.",
+    title="Data Analysis App",
+    description="Analysis and Visualization of Temperature Data.",
 )
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(server_name="0.0.0.0", server_port=7860)
