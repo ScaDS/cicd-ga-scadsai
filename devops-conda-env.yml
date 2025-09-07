@@ -1,0 +1,14 @@
+name: devops-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - pip
+  - pandas>=2.2.3
+  - matplotlib
+  - ruff
+  - pip:
+    - pytest
+    - pytest-cov
+    - coverage
+    - gradio

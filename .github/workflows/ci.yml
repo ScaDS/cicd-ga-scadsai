@@ -1,0 +1,115 @@
+name: cicd-pipeline
+
+# CICD Pipeline with GitHub Actions
+# See Docs: https://docs.github.com/en/actions
+# See available actions: https://github.com/marketplace?type=actions
+
+# Define when to run this pipeline
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+# Avoid duplicate runs per reference, e.g., for multiple successive pushes to a branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Define reusable ENV vars
+env:
+  CONDA_ENV_FILE: devops-conda-env.yml
+  CONDA_ENV_NAME: devops-env
+  DOCKER_IMAGE_NAME: analysis-app
+
+# Define least privilege security for this workflow
+permissions:
+  contents: read
+
+# Define CICD jobs
+jobs:
+  linting:
+    name: linting
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the repository
+      - uses: actions/checkout@v5
+      # Small footprint conda with built-in caching
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: ${{ env.CONDA_ENV_FILE }}
+          environment-name: ${{ env.CONDA_ENV_NAME }}
+          cache-environment: true
+          cache-downloads: true
+      - name: Run ruff for linting
+        run: micromamba run -n $CONDA_ENV_NAME ruff check
+
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    needs: linting
+    steps:
+      # Checkout the repository
+      - uses: actions/checkout@v5
+      # Small footprint conda with built-in caching
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: ${{ env.CONDA_ENV_FILE }}
+          environment-name: ${{ env.CONDA_ENV_NAME }}
+          cache-environment: true
+          cache-downloads: true
+      - name: Run pytest with coverage report
+        run: micromamba run -n $CONDA_ENV_NAME pytest --cov=app --cov-report=xml
+      - name: Validate test coverage
+        run: micromamba run -n $CONDA_ENV_NAME python scripts/check_test_coverage.py
+
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    needs: tests
+    # Run only for push on main or PRs targeting main
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.base_ref == 'main')
+    steps:
+      # Checkout the repository
+      - uses: actions/checkout@v5
+      # Set up Docker buildx inside CI
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
+      # Read current application version from pyproject.toml
+      - id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(grep -E '^[[:space:]]*version[[:space:]]*=[[:space:]]*\"[^\"]+\"' pyproject.toml | head -1 | sed -E 's/.*version[[:space:]]*=[[:space:]]*\"([^\"]+)\".*/\1/')"
+          if [[ -z "${VERSION}" ]]; then
+            echo "Version not found in pyproject.toml"; exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Found version: ${VERSION}"
+      # Build and export Application Docker image for linux/amd64
+      - name: Build Docker Image
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            -t $DOCKER_IMAGE_NAME:${{ steps.ver.outputs.version }} \
+            -t $DOCKER_IMAGE_NAME:latest \
+            --load \
+            .
+      - name: Export Docker Image
+        shell: bash
+        run: |
+          mkdir -p out
+          # Save the versioned tag (sufficient since 'latest' points to same image ID)
+          FILENAME="${DOCKER_IMAGE_NAME}_${{ steps.ver.outputs.version }}.tar"
+          docker save "$DOCKER_IMAGE_NAME:${{ steps.ver.outputs.version }}" -o "out/$FILENAME"
+          gzip -1 "out/$FILENAME"
+          echo "ARTIFACT_PATH=out/${FILENAME}.gz" >> "$GITHUB_ENV"
+
+      - name: Upload Docker Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.DOCKER_IMAGE_NAME }}-${{ steps.ver.outputs.version }}
+          path: ${{ env.ARTIFACT_PATH }}
+          retention-days: 7

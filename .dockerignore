@@ -1,0 +1,15 @@
+.git
+.DS_Store
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+.env
+*.swp
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+coverage.xml
+.coverage
+.actrc
