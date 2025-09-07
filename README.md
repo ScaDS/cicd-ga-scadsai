@@ -4,7 +4,7 @@ This repository serves as playground for the CICD and DevOps workshop at ScaDS.A
 
 ## Fork and Clone the Github Repository
 
-* Fork the repository into your GitHub account
+* Fork the repository into your GitHub account, copy the default branch `develop` only
 * Clone your fork locally
 ```bash
 git clone https://github.com/path/to/your/fork.git
