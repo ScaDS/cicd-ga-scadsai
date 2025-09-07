@@ -28,7 +28,7 @@ Create (or update) and activate the conda environment using:
 
 ```bash
 conda env update -f devops-conda-env.yml --prune
-conda activate dataweek-devops-env
+conda activate devops-env
 ```
 
 ### Development and Testing Requirements
