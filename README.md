@@ -37,33 +37,36 @@ Before submitting changes, complete these steps locally:
 
 #### Code Style and Linting
 
+Identifies code style violations and linting errors using ruff:
+
 ```bash
 ruff check
 ```
-Identifies code style violations and linting errors using ruff.
+
+Identifies code style violations and linting errors, tries to fix them automatically:
 
 ```bash
 ruff check --fix
 ```
-Identifies code style violations and linting errors, tries to fix them automatically.
 
 #### Test Execution and Test Coverage Verification
+
+Runs implemented tests with pytest located in `tests` and creates test coverage reports for classes located in `app` as xml and in terminal:
 
 ```bash
 pytest --cov=app --cov-report=xml --cov-report=term
 ```
-Runs implemented tests with pytest located in `tests`.
 
-Checks test coverage for implemented classes and creates coverage reports as xml and in terminal.
+Evaluates test coverage report to ensure all analysis modules have corresponding test implementations:
 
 ```bash
 python scripts/check_test_coverage.py
 ```
-Evaluates test coverage report to ensure all analysis modules have corresponding test implementations.
 
 ## Run the App
+
+Runs the Gradio app locally:
 
 ```bash
 python -m app.main
 ```
-Run the Gradio app locally.
