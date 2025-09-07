@@ -12,3 +12,7 @@
 __pycache__
 .coverage
 coverage.xml
+
+# Other
+.actrc
+.act-artifacts

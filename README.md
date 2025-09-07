@@ -51,7 +51,7 @@ ruff check --fix
 
 #### Test Execution and Test Coverage Verification
 
-Runs implemented tests with pytest located in `tests` and creates test coverage reports for classes located in `app` as xml and in terminal:
+Runs implemented tests with pytest located in `tests` and creates test coverage reports for classes located in `app` as coverage.xml and in terminal:
 
 ```bash
 pytest --cov=app --cov-report=xml --cov-report=term
