@@ -4,11 +4,13 @@ This repository serves as playground for the CICD and DevOps workshop at ScaDS.A
 
 ## Fork and Clone the Github Repository
 
-* Fork the repository into your GitHub account
+* Fork the repository into your GitHub account, copy the default branch `develop` only
+* In your fork, enable Actions -> Workflows 
 * Clone your fork locally
 ```bash
 git clone https://github.com/path/to/your/fork.git
 ```
+* You can now work on your fork
 
 ### Project Structure
 
@@ -19,6 +21,7 @@ git clone https://github.com/path/to/your/fork.git
 - `pyproject.toml` - Python project and tools configuration
 - `.github/workflows/ci.yml` - CICD configuration for Github Actions
 - `gitlab-ci.yml` - CICD configuration equivalent for GitLab
+- `Dockerfile` - Dockerization of the application
 
 ## Local Development Setup
 
@@ -62,6 +65,16 @@ Evaluates test coverage report to ensure all analysis modules have corresponding
 ```bash
 python scripts/check_test_coverage.py
 ```
+
+#### Local CICD Testing with act
+
+[act](https://nektosact.com/) allows to run GitHub Actions workflows locally inside Docker containers. This is useful for testing pipelines (e.g., .github/workflows/ci.yml) before pushing those changes to GitHub.
+
+* Install act like described: https://nektosact.com/installation/index.html
+* Make sure Docker is running on your system
+* List available jobs for a workflow: ```act -l```
+* Run all jobs as if pushing to the current branch: ```act push```
+* See more in the docs: https://nektosact.com/usage/index.html
 
 ## Run the App
 
