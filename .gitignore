@@ -16,3 +16,4 @@ coverage.xml
 # Other
 .actrc
 .act-artifacts
+.secrets
