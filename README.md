@@ -20,7 +20,7 @@ git clone https://github.com/path/to/your/fork.git
 - `devops-conda-env.yml` - Conda environment file
 - `pyproject.toml` - Python project and tools configuration
 - `.github/workflows/ci.yml` - CICD configuration for Github Actions
-- `gitlab-ci.yml` - CICD configuration equivalent for GitLab
+- `.gitlab-ci.yml` - CICD configuration equivalent for GitLab
 - `Dockerfile` - Dockerization of the application
 
 ## Local Development Setup

@@ -1,0 +1,103 @@
+# Gitlab CICD
+
+workflow:
+  rules:
+    # Pushes to develop or main
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH =~ /^(develop|main)$/'
+    # Merge Requests targeting develop or main
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^(develop|main)$/'
+    - when: never
+
+stages: [lint, test, deploy]
+
+# Global envs
+variables:
+  CONDA_ENV_FILE: devops-conda-env.yml
+  CONDA_ENV_NAME: devops-env
+  REGISTRY: docker.scadsai.uni-leipzig.de
+  PROJECT: library
+  IMAGE: ${REGISTRY}/${PROJECT}/analysis-app
+
+# Prefer interruptible jobs to auto-cancel older pipelines on new pushes
+default:
+  interruptible: true
+
+# Reusable cache for micromamba
+.cache_mamba: &cache_mamba
+  key:
+    files: [$CONDA_ENV_FILE]
+    prefix: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - /opt/conda/pkgs
+    - "/opt/conda/envs/${CONDA_ENV_NAME}"
+  policy: pull-push
+
+# Jobs
+linting:
+  stage: lint
+  image: mambaorg/micromamba:1
+  cache: *cache_mamba
+  script:
+    - micromamba --version
+    - micromamba create -y -n "$CONDA_ENV_NAME" -f "$CONDA_ENV_FILE"
+    - micromamba run -n "$CONDA_ENV_NAME" ruff check
+  artifacts:
+    when: always
+    expire_in: 1 week
+
+tests:
+  stage: test
+  image: mambaorg/micromamba:1
+  needs: ["linting"]
+  cache: *cache_mamba
+  script:
+    - micromamba create -y -n "$CONDA_ENV_NAME" -f "$CONDA_ENV_FILE"
+    - micromamba run -n "$CONDA_ENV_NAME" pytest --cov=app --cov-report=xml
+    - micromamba run -n "$CONDA_ENV_NAME" python scripts/check_test_coverage.py
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - coverage.xml
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+deploy:
+  stage: deploy
+  image: docker:24
+  services: [ "docker:24-dind" ]
+  needs: ["tests"]
+  rules:
+    # Only for *push* on main
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "main"'
+    - when: never
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    # Enable Docker Buildx with QEMU
+    - docker run --privileged --rm tonistiigi/binfmt --install all
+    - docker buildx create --use --name builder || docker buildx use builder
+    # Login to Harbor Docker registry
+    - echo "$HARBOR_PASSWORD" | docker login -u "$HARBOR_USERNAME" "$REGISTRY" --password-stdin
+  script:
+    # Extract version from pyproject.toml
+    - |
+      set -euo pipefail
+      VERSION="$(grep -E '^[[:space:]]*version[[:space:]]*=[[:space:]]*\"[^\"]+\"' pyproject.toml | head -1 | sed -E 's/.*version[[:space:]]*=[[:space:]]*\"([^\"]+)\".*/\1/')"
+      [ -n "$VERSION" ] || { echo "Version not found in pyproject.toml"; exit 1; }
+      echo "Found version: $VERSION"
+    # Build + push multi-arch, tag with version and latest
+    - |
+      docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        -t "$IMAGE:$VERSION" \
+        -t "$IMAGE:latest-gl" \
+        --push \
+        .
+      echo "Pushed:"
+      echo "  $IMAGE:$VERSION"
+      echo "  $IMAGE:latest-gl"
